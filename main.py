@@ -37,7 +37,7 @@ class BoatHandler(webapp2.RequestHandler):
             name=boat_data['name'],
             type=boat_data['type'],
             length=int(boat_data['length']),
-            at_sea=bool(boat_data['at_sea']))
+            at_sea=True)
         new_boat.put()
         new_boat.id = new_boat.key.urlsafe()
         new_boat.put()
@@ -91,7 +91,7 @@ class BoatHandler(webapp2.RequestHandler):
             b.delete()
         self.response.set_status(204)
 
-    def patch(self, id=None):
+    def patch(self, id=None, slipnumber=None):
         if id:
             current_boat = ndb.Key(urlsafe=id).get()
             if current_boat is None:
@@ -101,38 +101,43 @@ class BoatHandler(webapp2.RequestHandler):
                 current_boat_dict = current_boat.to_dict()
                 for key, patch_data in boat_patch_data_dict.items():
                     current_boat_dict[key] = patch_data
-                if 'name' in current_boat_dict:
-                    current_boat.name = current_boat_dict['name']
-                if 'type' in current_boat_dict:
-                    current_boat.type = current_boat_dict['type']
-                if 'length' in current_boat_dict:
-                    current_boat.length = current_boat_dict['length']
-                if 'at_sea' in current_boat_dict:
+                if 'name' in current_boat_dict and 'name' in boat_patch_data_dict:
+                    current_boat.name = boat_patch_data_dict['name']
+                if 'type' in current_boat_dict and 'type' in boat_patch_data_dict:
+                    current_boat.type = boat_patch_data_dict['type']
+                if 'length' in current_boat_dict and 'length' in boat_patch_data_dict:
+                    current_boat.length = boat_patch_data_dict['length']
+                if 'at_sea' in current_boat_dict and 'at_sea' in boat_patch_data_dict:
                     #Departure Scenario
-                    if (current_boat.at_sea != True and current_boat_dict['at_sea']):
+                    if (current_boat.at_sea != True and boat_patch_data_dict['at_sea']):
                         slip = Slip.query(Slip.current_boat == current_boat.id).fetch()[0]
                         slip.current_boat = None
                         slip.arrival_date = None
                         departure = Departure_History()
                         departure.departed_boat = current_boat.id
-                        departure.departure_date = datetime.strptime(datetime.today(), "%m/%d/%Y")
+                        departure.departure_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
                         slip.departure_history.append(departure)
                         slip.put()
+                        current_boat.at_sea = True
                     #Arrival Scenario
-                    if (current_boat.at_sea and current_boat_dict['at_sea'] != True):
+                    if (current_boat.at_sea and boat_patch_data_dict['at_sea'] != True):
                         #query to find empty slip
-                        slip = Slip.query(Slip.current_boat is None).fetch()[0]
+                        slip_list = Slip.query(Slip.number == int(slipnumber)).fetch()
                         #If slip is occupoed return 403?  (I guess i all slips occupied?)
-                        if slip is None:
-                            self.response.set_status(403)
-                        slip.current_boat = current_boat_dict['id']
-                        slip.arrival_date = datetime.strptime(datetime.today(), "%m/%d/%Y")
-                        #Should this happen in 1 api call?
-                        slip.put()
-                    current_boat.at_sea = current_boat_dict['at_sea']
+                        if slip_list is None or slip_list.count == 0:
+                            self.response.set_status(404)
+                        else:
+                            slip = slip_list[0]
+                            if slip.current_boat is not None:
+                                self.response.set_status(403)
+                            else:
+                                slip.current_boat = current_boat.id
+                                slip.arrival_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
+                                slip.put()
+                                current_boat_dict['slip_url'] = '/slip/' + slip.id
+                                current_boat.at_sea = False
                 current_boat.put()
                 current_boat_dict['self'] = '/boat/' + id
-
                 self.response.write(json.dumps(current_boat_dict))
                 self.response.headers.add('content-type', 'application/json')
                 self.response.headers.add('location', current_boat_dict['self'])
@@ -211,6 +216,10 @@ class SlipHandler(webapp2.RequestHandler):
             slip.delete()
         self.response.set_status(204)
 
+class DockHandler(webapp2.RequestHandler):
+    def patch(self, id, slipNumber):
+        self.response.write("id is " + id + " and slip number is " + slipNumber)
+        self.response.headers.add('content-type', 'application/json')
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
@@ -227,6 +236,7 @@ webapp2.WSGIApplication.allowed_methods = new_allowed_methods
 app = webapp2.WSGIApplication([
     ('/', MainPage),
     ('/boat', BoatHandler),
+    ('/boat/(.*)/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$', BoatHandler),
     ('/boat/(.*)', BoatHandler),
     ('/boats', BoatHandler),
     ('/slip', SlipHandler),
