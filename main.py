@@ -2,12 +2,13 @@ import webapp2
 import datetime
 from datetime import datetime
 from google.appengine.ext import ndb
+from google.appengine.ext import db
 import json
 
 
 class Boat(ndb.Model):
     # boat_id = ndb.KeyProperty(required=True)
-    #id = ndb.StringProperty()
+    id = ndb.StringProperty()
     name = ndb.StringProperty()
     type = ndb.StringProperty()
     length = ndb.IntegerProperty()
@@ -31,12 +32,15 @@ class BoatHandler(webapp2.RequestHandler):
     def post(self):
         boat_data = json.loads(self.request.body)
         new_boat = Boat()
-        if 'name' in boat_data:
-            new_boat.name = boat_data['name']
-        if 'type' in boat_data:
-            new_boat.type = boat_data['type']
-        if 'length' in boat_data:
-            new_boat.length = int(boat_data['length'])
+        if boat_data is None:
+            new_boat.name = "undefined"
+        else:
+            if 'name' in boat_data:
+                new_boat.name = boat_data['name']
+            if 'type' in boat_data:
+                new_boat.type = boat_data['type']
+            if 'length' in boat_data:
+                new_boat.length = int(boat_data['length'])
         new_boat.at_sea = True
         new_boat.put()
         boat_dict = new_boat.to_dict()
@@ -68,10 +72,15 @@ class BoatHandler(webapp2.RequestHandler):
                     boat.length = None
                 boat.at_sea = True
                 boat_dict = boat.to_dict()
+                boat_dict['id'] = boat.key.urlsafe()
                 boat_dict['self'] = "/boat/" + boat.key.urlsafe()
                 boat.put()
+                self.response.set_status(200)
                 self.response.write(json.dumps(boat_dict))
+                self.response.headers.add('location', boat_dict['self'])
                 self.response.headers.add('content-type', 'application/json')
+        else:
+            self.response.set_status(400)
 
     def get(self, id=None):
         if id:
@@ -86,9 +95,9 @@ class BoatHandler(webapp2.RequestHandler):
         else:
             boats = Boat.query()
             boat_list = list()
-            for idx, boat in enumerate(boats):
+            for boat in boats:
                 boat_dict = boat.to_dict()
-                boat_dict['id'] = id
+                boat_dict['id'] = boat.key.urlsafe()
                 boat_dict['self'] = '/boat/' + boat.key.urlsafe()
                 boat_list.append(boat_dict)
             self.response.write(json.dumps(boat_list))
@@ -129,8 +138,10 @@ class BoatHandler(webapp2.RequestHandler):
                         slip.put()
                         current_boat.at_sea = True
                     # Arrival Scenario
-                    if (current_boat.at_sea and boat_patch_data_dict['at_sea'] != True):
+                    if current_boat.at_sea and not boat_patch_data_dict['at_sea']:
+                        #slip = db.GqlQuery('SELECT * FROM Slip WHERE current_boat is Null')
                         slip = Slip.query(Slip.number == int(slipnumber)).get()
+                        #slip = Slip.query(Slip.current_boat is None).get()
                         if slip is None:
                             self.response.set_status(403)
                             return
@@ -144,13 +155,30 @@ class BoatHandler(webapp2.RequestHandler):
                                 current_boat_dict['slip_url'] = '/slip/' + slip.key.urlsafe()
                                 current_boat.at_sea = False
                 current_boat.put()
-                current_boat_dict['self'] = '/boat/' + current_boat_dict.key.urlsafe()
+                current_boat_dict['self'] = '/boat/' + current_boat.key.urlsafe()
                 self.response.write(json.dumps(current_boat_dict))
                 self.response.headers.add('content-type', 'application/json')
+                self.response.set_status(200)
                 self.response.headers.add('location', current_boat_dict['self'])
+        else:
+            self.response.set_status(400)
 
 
 class SlipHandler(webapp2.RequestHandler):
+
+    def post(self):
+        max_slip_number = Slip.query().order(-Slip.number).get()
+        #slip_data = json.loads(self.request.body)
+        new_slip = Slip(number=int(max_slip_number.number) + 1)
+        new_slip.put()
+        slip_dict = new_slip.to_dict()
+        slip_dict['id'] = new_slip.key.urlsafe()
+        slip_dict['self'] = '/slip/' + new_slip.key.urlsafe()
+        self.response.write(json.dumps(slip_dict))
+        self.response.headers.add('content-type', 'application/json')
+        self.response.headers.add('location', slip_dict['self'])
+        self.response.set_status(201)
+
     def patch(self, id=None):
         if id:
             slip = ndb.Key(urlsafe=id).get()
@@ -176,38 +204,31 @@ class SlipHandler(webapp2.RequestHandler):
                 self.response.headers.add('location', slip_dict['self'])
 
     def get(self, id=None):
-        # type: (object) -> object
         if id:
             slip = ndb.Key(urlsafe=id).get()
             if slip is None:
                 self.response.set_status(404)
             else:
                 slip_dict = slip.to_dict()
+                slip_dict["id"] = slip.key.urlsafe()
                 slip_dict['self'] = "/slip/" + id
                 if slip.current_boat is not None:
                     slip_dict['current_boat_url'] = '/boat/' + slip.current_boat
                 self.response.write(json.dumps(slip_dict))
         else:
-            slips = Slip.query().fetch(1000)
+            slips = Slip.query()
             slip_list = list()
-            for idx, slip in enumerate(slips):
+            for slip in slips:
                 slip_dict = slip.to_dict()
-                slip_dict['self'] = '/slip/' + slip.id
+                slip_dict["id"] = slip.key.urlsafe()
+                slip_dict['self'] = '/slip/' + slip.key.urlsafe()
                 if slip.current_boat is not None:
                     slip_dict['current_boat_url'] = '/boat/' + slip.current_boat
                 slip_list.append(slip_dict)
             self.response.write(json.dumps(slip_list))
         self.response.headers.add('content-type', 'application/json')
 
-    def post(self):
-        slip_data = json.loads(self.request.body)
-        new_slip = Slip(number=int(slip_data['number']))
-        new_slip.put()
-        slip_dict = new_slip.to_dict()
-        slip_dict['self'] = '/slip/' + new_slip.key.urlsafe()
-        self.response.write(json.dumps(slip_dict))
-        self.response.headers.add('content-type', 'application/json')
-        self.response.headers.add('location', slip_dict['self'])
+
 
     def delete(self, id = None):
         if id:
