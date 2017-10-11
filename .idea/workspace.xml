@@ -20,11 +20,11 @@
       <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="161">
-              <caret line="270" column="17" lean-forward="false" selection-start-line="270" selection-start-column="17" selection-end-line="270" selection-end-column="17" />
+            <state relative-caret-position="659">
+              <caret line="222" column="45" lean-forward="true" selection-start-line="222" selection-start-column="45" selection-end-line="222" selection-end-column="45" />
               <folding>
                 <element signature="e#0#14#0" expanded="true" />
-                <marker date="1507453523165" expanded="true" signature="5860:5904" ph="SELECT * FRO... Slip" />
+                <marker date="1507529015825" expanded="true" signature="5988:6032" ph="SELECT * FRO... Slip" />
               </folding>
             </state>
           </provider>
@@ -43,6 +43,8 @@
       <find>id</find>
       <find>depart</find>
       <find>ndb.key</find>
+      <find>dict['id']</find>
+      <find>dict[&quot;id&quot;]</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -165,7 +167,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-9" y="-9" width="2066" height="1122" extended-state="6" />
+    <frame x="0" y="0" width="1698" height="1020" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -174,9 +176,9 @@
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3299389" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16845703" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20535715" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3299389" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.36818182" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39918533" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -208,7 +210,7 @@
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#0#14#0" expanded="true" />
-            <marker date="1507453523165" expanded="true" signature="5860:5904" ph="SELECT * FRO... Slip" />
+            <marker date="1507529015825" expanded="true" signature="5988:6032" ph="SELECT * FRO... Slip" />
           </folding>
         </state>
       </provider>
@@ -597,11 +599,11 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="161">
-          <caret line="270" column="17" lean-forward="false" selection-start-line="270" selection-start-column="17" selection-end-line="270" selection-end-column="17" />
+        <state relative-caret-position="659">
+          <caret line="222" column="45" lean-forward="true" selection-start-line="222" selection-start-column="45" selection-end-line="222" selection-end-column="45" />
           <folding>
             <element signature="e#0#14#0" expanded="true" />
-            <marker date="1507453523165" expanded="true" signature="5860:5904" ph="SELECT * FRO... Slip" />
+            <marker date="1507529015825" expanded="true" signature="5988:6032" ph="SELECT * FRO... Slip" />
           </folding>
         </state>
       </provider>

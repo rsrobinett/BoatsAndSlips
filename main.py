@@ -7,6 +7,7 @@ import json
 
 
 class Boat(ndb.Model):
+    id = ndb.StringProperty()
     name = ndb.StringProperty()
     type = ndb.StringProperty()
     length = ndb.IntegerProperty()
@@ -19,6 +20,7 @@ class DepartureHistory(ndb.Model):
 
 
 class Slip(ndb.Model):
+    id = ndb.StringProperty()
     number = ndb.IntegerProperty()
     current_boat = ndb.StringProperty()
     arrival_date = ndb.StringProperty()
@@ -37,14 +39,17 @@ class BoatHandler(webapp2.RequestHandler):
             new_boat.length = int(boat_data['length'])
         new_boat.at_sea = True
         new_boat.put()
+        new_boat.id = new_boat.key.urlsafe()
+        new_boat.put()
         boat_dict = new_boat.to_dict()
         boat_dict['id'] = new_boat.key.urlsafe()
         boat_dict['self'] = '/boat/' + new_boat.key.urlsafe()
-        self.create_boat_dictionary(new_boat, new_boat.key.urlsafe())
+        self.create_boat_dictionary(new_boat)
         self.response.set_status(201)
         self.response.headers.add('content-type', 'application/json')
         self.response.headers.add('location', boat_dict['self'])
         self.response.write(json.dumps(boat_dict))
+        #self.get(new_boat.id)
 
     def put(self, id=None):
         boat_data = json.loads(self.request.body)
@@ -72,7 +77,7 @@ class BoatHandler(webapp2.RequestHandler):
                 if not boat.at_sea:
                     self.depart(boat)
                 boat_dict = boat.to_dict()
-                boat_dict['id'] = boat.key.urlsafe()
+                #boat_dict['id'] = boat.key.urlsafe()
                 boat_dict['self'] = "/boat/" + boat.key.urlsafe()
                 boat.put()
                 self.response.set_status(200)
@@ -92,13 +97,13 @@ class BoatHandler(webapp2.RequestHandler):
                 self.response.set_status(404)
                 return
             else:
-                boat_dict = self.create_boat_dictionary(boat, id)
+                boat_dict = self.create_boat_dictionary(boat)
                 self.response.write(json.dumps(boat_dict))
         else:
             boats = Boat.query()
             boat_list = list()
             for boat in boats:
-                boat_dict = self.create_boat_dictionary(boat, id)
+                boat_dict = self.create_boat_dictionary(boat)
                 boat_list.append(boat_dict)
             self.response.write(json.dumps(boat_list))
         self.response.headers.add('content-type', 'application/json')
@@ -160,7 +165,7 @@ class BoatHandler(webapp2.RequestHandler):
                                 slip.put()
                                 current_boat.at_sea = False
                                 current_boat_dict['slip_url'] = '/slip/' + slip.key.urlsafe()
-                    current_boat_dict['id'] = current_boat.key.urlsafe()
+                    #current_boat_dict['id'] = current_boat.key.urlsafe()
                 current_boat.put()
                 current_boat_dict['self'] = '/boat/' + current_boat.key.urlsafe()
                 self.response.write(json.dumps(current_boat_dict))
@@ -183,11 +188,11 @@ class BoatHandler(webapp2.RequestHandler):
             boat.at_sea = True
             boat.put()
 
-    def create_boat_dictionary(self, boat, id):
+    def create_boat_dictionary(self, boat):
         boat_dict = boat.to_dict()
         if not boat.at_sea:
             self.get_slip_url(boat, boat_dict)
-        boat_dict['id'] = id
+        #boat_dict['id'] = id
         boat_dict['self'] = "/boat/" + boat.key.urlsafe()
         return boat_dict
 
@@ -200,6 +205,8 @@ class SlipHandler(webapp2.RequestHandler):
 
     def post(self):
         new_slip = Slip(number=self.set_slip_number())
+        new_slip.put()
+        new_slip.id = new_slip.key.urlsafe()
         new_slip.put()
         self.get(new_slip.key.urlsafe())
         self.response.headers.add('location', '/slip/' + new_slip.key.urlsafe())
@@ -258,8 +265,8 @@ class SlipHandler(webapp2.RequestHandler):
                     slip_dict[key] = data
                 if 'number' in slip_dict:
                     slip_check = Slip.query(Slip.number == slip_dict['number']).get()
-                    if slip_check is None:
-                        slip.number = slip_dict['number']
+                    if slip_check is None or slip_check.number == slip.number:
+                        slip.number = int(slip_dict['number'])
                     else:
                         self.response.set_status(400)
                         self.response.headers.add('content-type', 'text/plain')
@@ -269,7 +276,7 @@ class SlipHandler(webapp2.RequestHandler):
                 #    if slip.current_boat is not None:
                 #        self.depart_boat(slip)
                 #    slip.current_boat = slip_dict['current_boat']
-                if 'arrival_date' in slip_dict:
+                if 'arrival_date' in slip_dict and slip.current_boat is not None:
                     slip.arrival_date = slip_dict['arrival_date']
                 slip.put()
                 slip_dict['self'] = '/slip/' + id
@@ -290,7 +297,7 @@ class SlipHandler(webapp2.RequestHandler):
                 self.response.set_status(404)
             else:
                 slip_dict = slip.to_dict()
-                slip_dict["id"] = slip.key.urlsafe()
+                #slip_dict["id"] = slip.key.urlsafe()
                 slip_dict['self'] = "/slip/" + id
                 if slip.current_boat is not None:
                     slip_dict['current_boat_url'] = '/boat/' + slip.current_boat
@@ -300,7 +307,7 @@ class SlipHandler(webapp2.RequestHandler):
             slip_list = list()
             for slip in slips:
                 slip_dict = slip.to_dict()
-                slip_dict["id"] = slip.key.urlsafe()
+                #slip_dict["id"] = slip.key.urlsafe()
                 slip_dict['self'] = '/slip/' + slip.key.urlsafe()
                 if slip.current_boat is not None:
                     slip_dict['current_boat_url'] = '/boat/' + slip.current_boat

@@ -16,4 +16,4 @@ Current questions for professor
 10. Should we be setting a boat to be at sea with a patch or with a url like boat/id/at_sea
 11. Should we be setting a boat to pull up to slip with a url?   boat/{{id}}/slip/{{number}}
 12. When we dock a boat on a slip do we need to dock it in a specific slip or just in any empty slip?
-
+13. Do we need to be concerned with timezone?
