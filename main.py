@@ -8,10 +8,10 @@ import json
 
 class Boat(ndb.Model):
     id = ndb.StringProperty()
-    name = ndb.StringProperty()
-    type = ndb.StringProperty()
-    length = ndb.IntegerProperty()
-    at_sea = ndb.BooleanProperty()
+    name = ndb.StringProperty(required = True)
+    type = ndb.StringProperty(required = True)
+    length = ndb.IntegerProperty(required = True)
+    at_sea = ndb.BooleanProperty(required = True)
 
 
 class DepartureHistory(ndb.Model):
@@ -21,10 +21,24 @@ class DepartureHistory(ndb.Model):
 
 class Slip(ndb.Model):
     id = ndb.StringProperty()
-    number = ndb.IntegerProperty()
+    number = ndb.IntegerProperty(required = True)
     current_boat = ndb.StringProperty()
     arrival_date = ndb.StringProperty()
     departure_history = ndb.StructuredProperty(DepartureHistory, repeated=True)
+
+
+def depart(boat):
+    if not boat.at_sea:
+        slip = Slip.query(Slip.current_boat == boat.key.urlsafe()).get()
+        slip.current_boat = None
+        slip.arrival_date = None
+        departure = DepartureHistory()
+        departure.departed_boat = boat.key.urlsafe()
+        departure.departure_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
+        slip.departure_history.append(departure)
+        slip.put()
+        boat.at_sea = True
+        boat.put()
 
 
 class BoatHandler(webapp2.RequestHandler):
@@ -75,7 +89,7 @@ class BoatHandler(webapp2.RequestHandler):
                 else:
                     boat.length = None
                 if not boat.at_sea:
-                    self.depart(boat)
+                    depart(boat)
                 boat_dict = boat.to_dict()
                 #boat_dict['id'] = boat.key.urlsafe()
                 boat_dict['self'] = "/boat/" + boat.key.urlsafe()
@@ -119,7 +133,7 @@ class BoatHandler(webapp2.RequestHandler):
                 return
             else:
                 if not boat.at_sea:
-                    self.depart(boat)
+                    depart(boat)
                 boat.key.delete()
         self.response.set_status(204)
 
@@ -149,7 +163,7 @@ class BoatHandler(webapp2.RequestHandler):
                         self.get_slip_url(current_boat, current_boat_dict)
                     # Departure Scenario
                     if (current_boat.at_sea != True and boat_patch_data_dict['at_sea']):
-                        self.depart(current_boat)
+                        depart(current_boat)
                     # Arrival Scenario
                     if current_boat.at_sea and not boat_patch_data_dict['at_sea']:
                         slip = ndb.gql("SELECT * FROM Slip WHERE current_boat = NULL").get()
@@ -174,19 +188,6 @@ class BoatHandler(webapp2.RequestHandler):
                 self.response.headers.add('location', current_boat_dict['self'])
         else:
             self.response.set_status(400)
-
-    def depart(self, boat):
-        if not boat.at_sea:
-            slip = Slip.query(Slip.current_boat == boat.key.urlsafe()).get()
-            slip.current_boat = None
-            slip.arrival_date = None
-            departure = DepartureHistory()
-            departure.departed_boat = boat.key.urlsafe()
-            departure.departure_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
-            slip.departure_history.append(departure)
-            slip.put()
-            boat.at_sea = True
-            boat.put()
 
     def create_boat_dictionary(self, boat):
         boat_dict = boat.to_dict()
@@ -346,10 +347,66 @@ class MainPage(webapp2.RequestHandler):
 allowed_methods = webapp2.WSGIApplication.allowed_methods
 new_allowed_methods = allowed_methods.union(('PATCH',))
 webapp2.WSGIApplication.allowed_methods = new_allowed_methods
+
+
+class ArrivalHandler(webapp2.RequestHandler):
+    def patch(self, boat_id, slip_number_from_url):
+        try:
+            current_boat = ndb.Key(urlsafe=boat_id).get()
+        except Exception:
+            current_boat = None
+        if current_boat is None:
+            self.response.set_status(403)
+            return
+        else:
+            if not current_boat.at_sea:
+                self.response.set_status(403)
+                return
+            slip = Slip.query(Slip.number == int(slip_number_from_url)).get()
+            if slip is None:
+                self.response.set_status(403)
+                return
+            else:
+                if slip.current_boat is not None:
+                    self.response.set_status(403)
+                else:
+                    slip.current_boat = current_boat.key.urlsafe()
+                    slip.arrival_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
+                    slip.put()
+                    current_boat.at_sea = False
+                    current_boat.put()
+            current_boat_dict = current_boat.to_dict()
+            current_boat_dict['self'] = '/boat/' + current_boat.key.urlsafe()
+            current_boat_dict['slip_url'] = '/slip/' + slip.key.urlsafe()
+            self.response.write(json.dumps(current_boat_dict))
+            self.response.headers.add('content-type', 'application/json')
+
+
+class DepartureHandler(webapp2.RequestHandler):
+    def patch(self, boat_id):
+        try:
+            current_boat = ndb.Key(urlsafe=boat_id).get()
+        except Exception:
+            current_boat = None
+        if current_boat is None:
+            self.response.set_status(403)
+            return
+        if current_boat.at_sea:
+            self.response.set_status(400)
+        else:
+            depart(current_boat)
+            current_boat_dict = current_boat.to_dict()
+            current_boat_dict['self'] = '/boat/' + current_boat.key.urlsafe()
+            self.response.write(json.dumps(current_boat_dict))
+            self.response.headers.add('content-type', 'application/json')
+
+
+
 app = webapp2.WSGIApplication([
     ('/', MainPage),
     ('/boat', BoatHandler),
- #   ('/boat/(.*)/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$', BoatHandler),
+    ('/boat/(.*)/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$', ArrivalHandler),
+    ('/boat/(.*)/at_sea', DepartureHandler),
     ('/boat/(.*)', BoatHandler),
     ('/boats', BoatHandler),
     ('/slip', SlipHandler),
