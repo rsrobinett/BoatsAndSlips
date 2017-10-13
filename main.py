@@ -27,6 +27,15 @@ class Slip(ndb.Model):
     departure_history = ndb.StructuredProperty(DepartureHistory, repeated=True)
 
 
+def set_slip_number():
+    max_slip = Slip.query().order(-Slip.number).get()
+    if max_slip is None:
+        max_slip_number = 0
+    else:
+        max_slip_number = int(max_slip.number) + 1
+    return max_slip_number
+
+
 def depart(boat):
     if not boat.at_sea:
         slip = Slip.query(Slip.current_boat == boat.key.urlsafe()).get()
@@ -165,7 +174,18 @@ class BoatHandler(webapp2.RequestHandler):
 
 class SlipHandler(webapp2.RequestHandler):
     def post(self):
-        new_slip = Slip(number=self.set_slip_number())
+        body = json.loads(self.request.body)
+        new_slip_number = body['number']
+        slip_check = Slip.query(Slip.number == new_slip_number).get()
+        new_slip = Slip()
+        if slip_check is None:
+            new_slip.number = number = new_slip_number
+        else:
+            self.response.set_status(403)
+            self.response.headers.add('content-type', 'text/plain')
+            self.response.write(
+                "slip number is not available. " + str(set_slip_number()) + " may be an available slip.")
+            return
         new_slip.put()
         new_slip.id = new_slip.key.urlsafe()
         new_slip.put()
@@ -204,7 +224,19 @@ class SlipHandler(webapp2.RequestHandler):
                 slip.current_boat = None
                 slip.arrival_date = None
                 slip.departure_history = []
-                slip.number = self.set_slip_number()
+                body = json.loads(self.request.body)
+                new_slip_number = body['number']
+                slip_check = Slip.query(Slip.number == new_slip_number).get()
+                new_slip = Slip()
+                if slip_check is None:
+                    new_slip.number = number = new_slip_number
+                else:
+                    self.response.set_status(403)
+                    self.response.headers.add('content-type', 'text/plain')
+                    self.response.write(
+                        "slip number is not available. " + str(set_slip_number()) + " may be an available slip.")
+                    return
+                # slip.number = self.set_slip_number()
                 slip.put()
                 self.get(id)
         else:
@@ -241,7 +273,7 @@ class SlipHandler(webapp2.RequestHandler):
                 if 'arrival_date' in slip_patch_dict and slip.current_boat is not None:
                     slip.arrival_date = slip_patch_data['arrival_date']
                 slip.put()
-                slip_dict = slip.to_dict
+                slip_dict = slip.to_dict()
                 slip_dict['self'] = '/slip/' + id
                 if slip.current_boat is not None:
                     slip_dict['current_boat_url'] = '/boat/' + slip.current_boat
@@ -275,14 +307,6 @@ class SlipHandler(webapp2.RequestHandler):
                 slip_list.append(slip_dict)
             self.response.write(json.dumps(slip_list))
         self.response.headers.add('content-type', 'application/json')
-
-    def set_slip_number(self):
-        max_slip = Slip.query().order(-Slip.number).get()
-        if max_slip is None:
-            max_slip_number = 0
-        else:
-            max_slip_number = int(max_slip.number) + 1
-        return max_slip_number
 
     def depart_boat(self, slip):
         if slip.current_boat is not None:
@@ -335,7 +359,7 @@ class ArrivalHandler(webapp2.RequestHandler):
                         slip.arrival_date = body['arrival_date']
                     else:
                         return self.response.set_status(403)
-                    #    slip.arrival_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
+                    # slip.arrival_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
                     slip.put()
                     current_boat.at_sea = False
                     current_boat.put()
@@ -368,9 +392,16 @@ class DepartureHandler(webapp2.RequestHandler):
             self.response.headers.add('content-length', "0")
 
 
+class SlipHelperHandler(webapp2.RequestHandler):
+    def get(self):
+        self.response.write(set_slip_number())
+        self.response.headers['content-type'] = 'text/plain'
+
+
 app = webapp2.WSGIApplication([
     ('/', MainPage),
     ('/boat', BoatHandler),
+    ('/slip/available', SlipHelperHandler),
     ('/boat/(.*)/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$', ArrivalHandler),
     ('/boat/(.*)/at_sea', DepartureHandler),
     ('/boat/(.*)', BoatHandler),
