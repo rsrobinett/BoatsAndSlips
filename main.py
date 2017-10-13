@@ -43,7 +43,7 @@ def depart(boat):
         slip.arrival_date = None
         departure = DepartureHistory()
         departure.departed_boat = boat.key.urlsafe()
-        departure.departure_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
+        departure.departure_date = datetime.strftime(datetime.utcnow().date(), "%m/%d/%Y")
         slip.departure_history.append(departure)
         slip.put()
         boat.at_sea = True
@@ -371,7 +371,6 @@ class ArrivalHandler(webapp2.RequestHandler):
         self.response.write(json.dumps(slip_dict))
         self.response.headers.add('content-type', 'application/json')
 
-
     def delete(self, slip_number):
         try:
             slip = Slip.query(Slip.number == int(slip_number)).get()
@@ -409,69 +408,15 @@ class ArrivalHandler(webapp2.RequestHandler):
         self.response.headers.add('content-type', 'application/json')
 
 
-        #try:
-        #    current_boat = ndb.Key(urlsafe=boat_id).get()
-        #ex#cept Exception:
-        #    self.response.set_status(403)
-        #    self.response.write("Searching for boat by id cause and exception")
-        #    self.headers['content-type'] = 'text/plain'
-        #    return
-        #if current_boat is None:
-        #    self.response.set_status(403)
-        #    self.response.write("Searching for boat by id resulted in no boat being found")
-        #    self.headers['content-type'] = 'text/plain'
-        #    return
-        #if not current_boat.at_sea:
-        #    self.response.set_status(403)
-        #    self.response.write("Searching boat has already arrived")
-        #    self.headers['content-type'] = 'text/plain'
-        #    return
-
-    def patch(self, boat_id, slip_number_from_url):
-        try:
-            current_boat = ndb.Key(urlsafe=boat_id).get()
-        except Exception:
-            current_boat = None
-        if current_boat is None:
-            self.response.set_status(403)
-            return
-        else:
-            if not current_boat.at_sea:
-                self.response.set_status(403)
-                return
-            slip = Slip.query(Slip.number == int(slip_number_from_url)).get()
-            if slip is None:
-                self.response.set_status(403)
-                return
-            else:
-                if slip.current_boat is not None:
-                    self.response.set_status(403)
-                else:
-                    slip.current_boat = current_boat.key.urlsafe()
-                    body = json.loads(self.request.body)
-                    if 'arrival_date' in body:
-                        slip.arrival_date = body['arrival_date']
-                    else:
-                        return self.response.set_status(403)
-                    # slip.arrival_date = datetime.strftime(datetime.today(), "%m/%d/%Y")
-                    slip.put()
-                    current_boat.at_sea = False
-                    current_boat.put()
-            current_boat_dict = current_boat.to_dict()
-            current_boat_dict['self'] = '/boat/' + current_boat.key.urlsafe()
-            current_boat_dict['slip_url'] = '/slip/' + slip.key.urlsafe()
-            self.response.write(json.dumps(current_boat_dict))
-            self.response.headers.add('content-type', 'application/json')
-
-
 class DepartureHandler(webapp2.RequestHandler):
     def patch(self, boat_id):
         try:
             current_boat = ndb.Key(urlsafe=boat_id).get()
         except Exception:
-            current_boat = None
+            self.response.set_status(404)
+            self.response.write("locating the boat threw an exception")
         if current_boat is None:
-            self.response.set_status(403)
+            self.response.set_status(404)
             self.response.write("current_boat is None")
             return
         if current_boat.at_sea:
@@ -496,9 +441,8 @@ app = webapp2.WSGIApplication([
     ('/', MainPage),
     ('/boat', BoatHandler),
     ('/slip/available', SlipTestHelperHandler),
-    ('/boat/(.*)/arrival', ArrivalHandler),
     ('/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*/arrival', ArrivalHandler),
-    ('/boat/(.*)/at_sea', DepartureHandler),
+    ('/boat/(.*)/departure', DepartureHandler),
     ('/boat/(.*)', BoatHandler),
     ('/boats', BoatHandler),
     ('/slip', SlipHandler),
