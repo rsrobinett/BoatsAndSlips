@@ -333,6 +333,100 @@ webapp2.WSGIApplication.allowed_methods = new_allowed_methods
 
 
 class ArrivalHandler(webapp2.RequestHandler):
+    def put(self, slip_number):
+        try:
+            slip = Slip.query(Slip.number == int(slip_number)).get()
+        except Exception:
+            self.response.set_status(404)
+            self.response.write("Searching for slip by number caused and exception")
+            self.response.headers.add('content-type', 'text/plain')
+            return
+        if slip is None:
+            self.response.set_status(404)
+            self.response.write("Searching for slip by number resulted in no slip being found")
+            self.response.headers.add('content-type', 'text/plain')
+            return
+        body = json.loads(self.request.body)
+        incoming_boat_id = body['incoming_boat']
+        if slip.current_boat != incoming_boat_id:
+            if slip.current_boat is not None:
+                self.response.set_status(403)
+                self.response.write("Slip is occupied")
+                self.response.headers.add('content-type', 'text/plain')
+                return
+            incoming_boat = ndb.Key(urlsafe=incoming_boat_id).get()
+            if incoming_boat is None:
+                self.response.set_status(404)
+                self.response.write("unknown boat " + incoming_boat_id)
+                self.response.headers.add('content-type', 'text/plain')
+                return
+            incoming_boat.at_sea = False
+            incoming_boat.put()
+            slip.current_boat = incoming_boat.id
+            slip.arrival_date = datetime.strftime(datetime.utcnow().date(), "%m/%d/%Y")
+            slip.put()
+        slip_dict = slip.to_dict()
+        slip_dict['self'] = "/slip/" + slip.id
+        slip_dict['current_boat_url'] = '/boat/' + slip.current_boat
+        self.response.write(json.dumps(slip_dict))
+        self.response.headers.add('content-type', 'application/json')
+
+
+    def delete(self, slip_number):
+        try:
+            slip = Slip.query(Slip.number == int(slip_number)).get()
+        except Exception:
+            self.response.set_status(404)
+            self.response.write("Searching for slip by number caused and exception")
+            self.response.headers.add('content-type', 'text/plain')
+            return
+        if slip is None:
+            self.response.set_status(404)
+            self.response.write("Searching for slip by number resulted in no slip being found")
+            self.response.headers.add('content-type', 'text/plain')
+            return
+        if slip.current_boat is None:
+            self.response.set_status(404)
+            self.response.write("Slip is not occupied")
+            self.response.headers.add('content-type', 'text/plain')
+            return
+        boat = ndb.Key(urlsafe=slip.current_boat).get()
+        if boat is None:
+            self.response.set_status(404)
+            self.response.write("unknown boat " + slip.current_boat)
+            self.response.headers.add('content-type', 'text/plain')
+            return
+        boat.at_sea = True
+        boat.put()
+        departure_history = DepartureHistory(departed_boat=boat.id, departure_date=datetime.strftime(datetime.utcnow().date(), "%m/%d/%Y"))
+        slip.departure_history.append(departure_history)
+        slip.current_boat = None
+        slip.arrival_date = None
+        slip.put()
+        slip_dict = slip.to_dict()
+        slip_dict['self'] = "/slip/" + slip.id
+        self.response.write(json.dumps(slip_dict))
+        self.response.headers.add('content-type', 'application/json')
+
+
+        #try:
+        #    current_boat = ndb.Key(urlsafe=boat_id).get()
+        #ex#cept Exception:
+        #    self.response.set_status(403)
+        #    self.response.write("Searching for boat by id cause and exception")
+        #    self.headers['content-type'] = 'text/plain'
+        #    return
+        #if current_boat is None:
+        #    self.response.set_status(403)
+        #    self.response.write("Searching for boat by id resulted in no boat being found")
+        #    self.headers['content-type'] = 'text/plain'
+        #    return
+        #if not current_boat.at_sea:
+        #    self.response.set_status(403)
+        #    self.response.write("Searching boat has already arrived")
+        #    self.headers['content-type'] = 'text/plain'
+        #    return
+
     def patch(self, boat_id, slip_number_from_url):
         try:
             current_boat = ndb.Key(urlsafe=boat_id).get()
@@ -392,7 +486,7 @@ class DepartureHandler(webapp2.RequestHandler):
             self.response.headers.add('content-length', "0")
 
 
-class SlipHelperHandler(webapp2.RequestHandler):
+class SlipTestHelperHandler(webapp2.RequestHandler):
     def get(self):
         self.response.write(set_slip_number())
         self.response.headers['content-type'] = 'text/plain'
@@ -401,8 +495,9 @@ class SlipHelperHandler(webapp2.RequestHandler):
 app = webapp2.WSGIApplication([
     ('/', MainPage),
     ('/boat', BoatHandler),
-    ('/slip/available', SlipHelperHandler),
-    ('/boat/(.*)/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*$', ArrivalHandler),
+    ('/slip/available', SlipTestHelperHandler),
+    ('/boat/(.*)/arrival', ArrivalHandler),
+    ('/slip/(\(?\+?[0-9]*\)?)?[0-9_\- \(\)]*/arrival', ArrivalHandler),
     ('/boat/(.*)/at_sea', DepartureHandler),
     ('/boat/(.*)', BoatHandler),
     ('/boats', BoatHandler),
